@@ -46,6 +46,40 @@ jobs:
         python3 -m pip install -r requirements.txt
 
     # Generate all statistics images
+     - name: Verify stats token
+      env:
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      run: |
+        python3 - <<'PY'
+        import json
+        import os
+        from urllib.error import HTTPError, URLError
+        from urllib.request import Request, urlopen
+
+        token = os.environ.get("ACCESS_TOKEN")
+        if not token:
+            raise SystemExit("ACCESS_TOKEN is missing or empty.")
+
+        request = Request(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        try:
+            with urlopen(request, timeout=15) as response:
+                login = json.load(response).get("login", "")
+        except HTTPError as error:
+            raise SystemExit(f"GitHub token check failed: HTTP {error.code}")
+        except URLError:
+            raise SystemExit("Could not reach the GitHub API.")
+
+        if login.lower() != "obigvee":
+            raise SystemExit("ACCESS_TOKEN belongs to a different GitHub account.")
+
+        print("Token accepted: authenticated as OBigVee.")
+        PY
+
+    # Generate all statistics images
     - name: Generate images
       run: |
         python3 --version
